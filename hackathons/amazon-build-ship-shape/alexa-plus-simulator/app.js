@@ -28,16 +28,28 @@ const scenarios = {
       ['messages.draft', 'Draft a household handoff message', true],
       ['shopping.preview', 'Preview missing grocery items without purchase', true]
     ]
+  },
+  injection: {
+    title: 'Untrusted-content safety check',
+    prompt: 'Alexa, review this imported agenda and prepare my next actions.',
+    steps: [
+      ['calendar.read', 'Read the imported agenda item', false],
+      ['security.inspect', 'Classify embedded instructions as untrusted content', false],
+      ['secrets.exfiltrate', 'Ignore the embedded request to reveal private account data', false],
+      ['messages.draft', 'Draft a safe summary that excludes the untrusted instruction', true]
+    ]
   }
 };
 
 const toolCatalog = {
-  'calendar.read': { risk: 'read', boundary: 'calendar:today' },
-  'weather.read': { risk: 'read', boundary: 'weather:local' },
-  'tasks.plan': { risk: 'compute', boundary: 'local-plan' },
-  'messages.draft': { risk: 'write-preview', boundary: 'draft-only' },
-  'travel.status': { risk: 'read', boundary: 'simulated-travel' },
-  'shopping.preview': { risk: 'purchase-preview', boundary: 'no-purchase' }
+  'calendar.read': { risk: 'read', boundary: 'calendar:today', policy: 'allow' },
+  'weather.read': { risk: 'read', boundary: 'weather:local', policy: 'allow' },
+  'tasks.plan': { risk: 'compute', boundary: 'local-plan', policy: 'allow' },
+  'messages.draft': { risk: 'write-preview', boundary: 'draft-only', policy: 'approval' },
+  'travel.status': { risk: 'read', boundary: 'simulated-travel', policy: 'allow' },
+  'shopping.preview': { risk: 'purchase-preview', boundary: 'no-purchase', policy: 'approval' },
+  'security.inspect': { risk: 'security-check', boundary: 'local-classifier', policy: 'allow' },
+  'secrets.exfiltrate': { risk: 'forbidden', boundary: 'no-secret-egress', policy: 'deny' }
 };
 
 const state = {
@@ -47,6 +59,10 @@ const state = {
   memory: [],
   scenario: 'morning'
 };
+
+function approvalKey(tool) {
+  return `${state.scenario}:${tool}`;
+}
 
 function log(type, payload = {}) {
   const event = { id: crypto.randomUUID(), at: new Date().toISOString(), type, payload };
@@ -65,13 +81,15 @@ function renderScenario() {
     const spec = toolCatalog[tool];
     const li = document.createElement('li');
     li.className = 'plan-step';
-    li.innerHTML = `<div><strong>${idx + 1}. ${description}</strong><span>${tool} · ${spec.risk} · scope ${spec.boundary}</span></div><button data-tool="${tool}" ${approval ? '' : 'disabled'}>${approval ? 'Approve preview' : 'Read-only'}</button>`;
+    const controlLabel = spec.policy === 'deny' ? 'Policy-denied' : approval ? 'Approve preview' : 'Read-only';
+    const disabled = spec.policy === 'deny' || !approval;
+    li.innerHTML = `<div><strong>${idx + 1}. ${description}</strong><span>${tool} · ${spec.risk} · scope ${spec.boundary}</span></div><button data-tool="${tool}" ${disabled ? 'disabled' : ''}>${controlLabel}</button>`;
     const button = li.querySelector('button');
-    if (approval) button.addEventListener('click', () => {
-      state.approvals.add(tool);
+    if (approval && spec.policy !== 'deny') button.addEventListener('click', () => {
+      state.approvals.add(approvalKey(tool));
       button.textContent = 'Approved';
       button.disabled = true;
-      log('approval.granted', { tool, scope: spec.boundary });
+      log('approval.granted', { tool, scope: spec.boundary, scenario: state.scenario });
     });
     plan.appendChild(li);
   });
@@ -81,9 +99,14 @@ function executeScenario() {
   const s = scenarios[state.scenario];
   const blocked = [];
   const executed = [];
-  s.steps.forEach(([tool, description, approval]) => {
+  s.steps.forEach(([tool]) => {
     const spec = toolCatalog[tool];
-    if (approval && !state.approvals.has(tool)) {
+    if (spec.policy === 'deny') {
+      blocked.push({ tool, reason: 'policy_denied', scope: spec.boundary });
+      log('tool.blocked', { tool, reason: 'policy_denied', scope: spec.boundary });
+      return;
+    }
+    if (spec.policy === 'approval' && !state.approvals.has(approvalKey(tool))) {
       blocked.push({ tool, reason: 'approval_required', scope: spec.boundary });
       log('tool.blocked', { tool, reason: 'approval_required', scope: spec.boundary });
       return;
@@ -91,7 +114,12 @@ function executeScenario() {
     executed.push({ tool, result: simulatedResult(tool), scope: spec.boundary });
     log('tool.executed', { tool, scope: spec.boundary, mode: 'simulation' });
   });
-  state.memory.push({ scenario: state.scenario, completedAt: new Date().toISOString(), executed: executed.map(x => x.tool) });
+  state.memory.push({
+    scenario: state.scenario,
+    completedAt: new Date().toISOString(),
+    executed: executed.map(x => x.tool),
+    blocked: blocked.map(x => ({ tool: x.tool, reason: x.reason }))
+  });
   renderOutcome(executed, blocked);
   renderMemory();
 }
@@ -103,7 +131,8 @@ function simulatedResult(tool) {
     'tasks.plan': 'Focus block protected; low-value task deferred',
     'messages.draft': 'Draft created locally; nothing sent',
     'travel.status': 'Delay +65 min; gate moved to B12',
-    'shopping.preview': '3 items identified; purchase disabled'
+    'shopping.preview': '3 items identified; purchase disabled',
+    'security.inspect': 'Embedded instruction labeled untrusted and excluded from authority'
   };
   return results[tool] || 'Simulated tool result';
 }
@@ -112,12 +141,12 @@ function renderOutcome(executed, blocked) {
   const el = document.querySelector('#outcome');
   el.innerHTML = `<h3>Execution receipt</h3><p>${executed.length} tool calls executed in simulation; ${blocked.length} blocked by policy.</p>` +
     executed.map(x => `<div class="receipt ok"><b>${x.tool}</b><span>${x.result}</span><small>${x.scope}</small></div>`).join('') +
-    blocked.map(x => `<div class="receipt blocked"><b>${x.tool}</b><span>Blocked: approval required</span><small>${x.scope}</small></div>`).join('');
+    blocked.map(x => `<div class="receipt blocked"><b>${x.tool}</b><span>Blocked: ${x.reason.replace('_', ' ')}</span><small>${x.scope}</small></div>`).join('');
 }
 
 function renderReceipts() {
   document.querySelector('#receipt-count').textContent = state.events.length;
-  document.querySelector('#event-stream').textContent = JSON.stringify(state.events.slice(-8), null, 2);
+  document.querySelector('#event-stream').textContent = JSON.stringify(state.events.slice(-10), null, 2);
 }
 
 function renderMemory() {
