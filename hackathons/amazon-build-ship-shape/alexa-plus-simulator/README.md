@@ -17,13 +17,15 @@ The Alexa+ track permits a simulated Alexa+ experience built with an AI/agentic 
 
 ## Demonstrated capabilities
 
-- Three distinct Alexa+-style agentic scenarios.
-- Multi-service orchestration across calendar, weather/travel, tasks, messages, and shopping preview surfaces.
+- Four distinct Alexa+-style agentic scenarios: morning planning, travel disruption recovery, family coordination, and untrusted-content defense.
+- Multi-service orchestration across calendar, weather/travel, tasks, messages, shopping preview, and local security inspection surfaces.
 - Session state and memory.
 - Tool-level scope labels.
-- Explicit approval gating for write or purchase-adjacent operations.
-- No purchase and no external-send policy boundaries.
-- Structured execution/block/approval receipts.
+- Explicit allow / approval / deny policy states.
+- Scenario-scoped approval gating for write or purchase-adjacent operations.
+- Hard-denied no-secret-egress behavior for untrusted instructions.
+- No-purchase and draft-only boundaries.
+- Structured execution/block/approval receipts with blocked-reason persistence.
 - No external API keys or network calls.
 
 ## Test
@@ -34,11 +36,13 @@ From this directory:
 node test_contract.js
 ```
 
-Expected current result: `12 passed, 0 failed`.
+Fresh deterministic execution on 2026-09-08 against the current branch files returned `20 passed, 0 failed`.
+
+A GitHub Actions workflow is also present at `.github/workflows/amazon-buildfest-alexa-plus.yml` to run the same contract suite on eligible branch/PR events. The existence of that workflow is not itself a claim that GitHub-hosted CI has executed; use the local command above as the canonical reproducible check until a hosted run is visible.
 
 ## Evidence boundary
 
-This is a simulation. It does not claim Alexa certification, an Amazon Agent Skill, a deployed MCP server, live external service calls, message delivery, purchases, or Amazon judging results. Its purpose is to provide a truthful, reproducible judge surface that can be upgraded with approved live integrations later.
+This is a simulation. It does not claim Alexa certification, an Amazon Agent Skill, a deployed MCP server, live external service calls, message delivery, purchases, contest registration, Amazon judging results, placement, or payout. Its purpose is to provide a truthful, reproducible judge surface that can be upgraded with approved live integrations later.
 
 ## Zero-spend rule
 
