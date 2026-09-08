@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SpeakMCP — Alexa+ Agentic Day Simulator</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">Amazon Build, Ship, Shape · Alexa+ simulation path</p>
+      <h1>Agentic Day</h1>
+      <p class="lede">A stateful, permission-bounded Alexa+ simulation that coordinates multiple services while making every consequential action inspectable, approvable, and fail-closed.</p>
+      <div class="badges"><span>Zero-spend demo</span><span>No external API keys</span><span>Local execution receipts</span><span>Untrusted-content defense</span></div>
+    </header>
+
+    <section class="control-card">
+      <label for="scenario">Scenario</label>
+      <select id="scenario">
+        <option value="morning">Morning launch sequence</option>
+        <option value="travel">Travel disruption recovery</option>
+        <option value="family">Family evening handoff</option>
+        <option value="injection">Untrusted-content safety check</option>
+      </select>
+      <h2 id="scenario-title"></h2>
+      <blockquote id="user-prompt"></blockquote>
+      <ol id="plan"></ol>
+      <div class="actions"><button id="run">Run bounded simulation</button><button id="export" class="secondary">Export audit receipt</button></div>
+    </section>
+
+    <section class="grid">
+      <article><h2>Why this is agentic</h2><p>One natural-language intent becomes a multi-step plan across calendar, travel/weather, tasks, messages, shopping preview, and local security inspection surfaces. State persists across scenario runs inside the session.</p></article>
+      <article><h2>Why this is safe</h2><p>Read-only steps may run immediately. Write or purchase-adjacent steps require explicit scenario-scoped approval. Forbidden actions remain denied even after approval, and untrusted embedded instructions cannot inherit user authority.</p></article>
+      <article><h2>Why this is judgeable</h2><p>Every tool decision emits a structured local event. Judges can inspect blocked actions, policy denials, approvals, scopes, execution order, and session memory.</p></article>
+    </section>
+
+    <section id="outcome" class="control-card"><h3>Execution receipt</h3><p>Run a scenario to generate evidence.</p></section>
+    <section class="evidence-grid">
+      <article><h2>Recent event stream <span id="receipt-count">0</span></h2><pre id="event-stream"></pre></article>
+      <article><h2>Session memory</h2><pre id="memory">[]</pre></article>
+    </section>
+
+    <footer>Simulation only. No Alexa certification, external message send, purchase, secret exfiltration, or real-world service mutation is claimed.</footer>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

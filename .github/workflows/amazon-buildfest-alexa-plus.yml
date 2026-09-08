@@ -1,0 +1,30 @@
+name: Amazon Build Ship Shape Alexa+ Contract
+
+on:
+  push:
+    branches:
+      - amazon-buildfest-alexa-plus
+  pull_request:
+    paths:
+      - 'hackathons/amazon-build-ship-shape/alexa-plus-simulator/**'
+      - '.github/workflows/amazon-buildfest-alexa-plus.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: hackathons/amazon-build-ship-shape/alexa-plus-simulator
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run deterministic contract suite
+        run: node test_contract.js
