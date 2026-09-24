@@ -26,5 +26,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Run deterministic contract suite
+      - name: Run browser-simulator contract suite
         run: node test_contract.js
+      - name: Run MCP 2025-11-25 Streamable HTTP contract suite
+        run: node test_mcp_server.js
