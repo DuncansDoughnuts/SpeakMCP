@@ -1,0 +1,11 @@
+{
+  "name": "amazon-alexa-plus-simulator",
+  "private": true,
+  "type": "commonjs",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "test:browser": "node test_contract.js",
+    "test:mcp": "node test_mcp_server.js",
+    "test": "node test_contract.js && node test_mcp_server.js"
+  }
+}
