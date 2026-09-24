@@ -1,22 +1,28 @@
 # Agentic Day — Alexa+ Simulation + Self-Hosted MCP
 
-A zero-spend Alexa+ experience for Amazon Build, Ship, Shape. It now ships **two judgeable surfaces** from the same project:
+A zero-spend Alexa+ experience for Amazon Build, Ship, Shape. The project now provides **three judgeable surfaces** from one repository:
 
-1. a browser-only Alexa+ simulation that demonstrates stateful multi-service orchestration, approvals, policy boundaries, and structured receipts; and
-2. a self-hosted MCP endpoint implementing the hackathon's required `2025-11-25` handshake-era protocol over Streamable HTTP using JSON responses.
+1. a browser-only Alexa+ simulation for stateful multi-service orchestration, scoped approvals, policy boundaries, and structured receipts;
+2. a Node.js MCP `2025-11-25` mission-planner endpoint over Streamable HTTP; and
+3. a Python Continuity MCP reliability layer for secure sessions, checkpoint/resume, one-time approvals, idempotent replay, concurrent duplicate-call collapse, session isolation, and audit ledgers.
 
-The project turns one natural-language intent into a bounded multi-service plan while preserving explicit approval boundaries. Remembered context can inform a plan but never becomes authorization.
+The project turns natural-language intent into bounded multi-service work while preserving a hard distinction between remembered context and user authority.
+
+## Why it matters
+
+Long-running agents fail in practical ways: sessions are interrupted, tool calls are retried, duplicate requests race, and consequential actions can be repeated. This submission demonstrates that an Alexa+-style agent can resume from a verified checkpoint, fail closed at approval boundaries, and return deterministic replay receipts instead of silently repeating an irreversible action.
 
 ## Judge path — browser simulator
 
 1. Serve this directory with any static server, for example `python -m http.server 8000`.
 2. Open `http://localhost:8000`.
-3. Run each scenario before approving write-adjacent steps and observe the blocked actions.
-4. Approve a draft/preview step and rerun to observe policy-controlled execution.
-5. Switch scenarios to demonstrate session memory.
-6. Export the audit receipt and inspect the structured event log.
+3. Run the morning, travel, family, and untrusted-content scenarios.
+4. Observe blocked write-adjacent steps before approval.
+5. Approve a scoped draft/preview step and rerun.
+6. Switch scenarios to demonstrate session memory.
+7. Export the audit receipt and inspect the structured event log.
 
-## Judge path — MCP server
+## Judge path — Node MCP mission planner
 
 Requires Node.js 22+ and no package installation.
 
@@ -26,9 +32,9 @@ node mcp_server.js
 # health:       http://127.0.0.1:8788/health
 ```
 
-The server supports the minimum hackathon protocol revision `2025-11-25`, JSON-RPC over POST, JSON response mode, `initialize`, `notifications/initialized`, `ping`, `tools/list`, and `tools/call`. GET explicitly returns `405` because the server does not offer a standalone SSE stream. Session IDs are intentionally not used; the transport is stateless. Incoming foreign browser origins are rejected to protect a local server from DNS-rebinding-style access.
+The server supports protocol version `2025-11-25`, JSON-RPC over POST, JSON response mode, `initialize`, `notifications/initialized`, `ping`, `tools/list`, and `tools/call`. GET returns `405` because the server does not expose a standalone SSE stream. Foreign browser origins are rejected.
 
-### MCP tools
+### Node MCP tools
 
 - `remember_context`
 - `recall_context`
@@ -37,44 +43,66 @@ The server supports the minimum hackathon protocol revision `2025-11-25`, JSON-R
 - `execute_mission`
 - `get_audit_receipt`
 
+## Judge path — Continuity MCP
+
+```bash
+cd continuity_mcp
+python -m unittest -v test_conformance.py
+python server.py
+# MCP endpoint: http://127.0.0.1:8765/mcp
+```
+
+Continuity MCP adds:
+
+- secure server-issued session IDs;
+- checkpoint/resume state continuity;
+- approval consumed exactly once before irreversible execution;
+- idempotency-key replay behavior;
+- concurrent duplicate calls collapsed onto one execution identity;
+- session isolation;
+- structured ledgers and digests; and
+- Origin, Accept, protocol-version, request-size, notification/202, GET/405, DELETE, and stale-session controls.
+
 ## Demonstrated capabilities
 
-- Four distinct Alexa+-style browser scenarios: morning planning, travel disruption recovery, family coordination, and untrusted-content defense.
-- Multi-service orchestration across calendar, weather/travel, tasks, messages, shopping preview, and local security inspection surfaces.
-- Session state and memory.
-- Tool-level scope labels.
-- Explicit allow / approval / deny policy states.
-- Scenario-scoped and workflow-step-scoped approval gating for write or purchase-adjacent operations.
+- Four Alexa+-style browser scenarios: morning planning, travel disruption recovery, family coordination, and untrusted-content defense.
+- Multi-service orchestration across calendar, weather/travel, tasks, message drafting, shopping preview, and local security inspection surfaces.
+- Tool-level scopes and explicit allow / approval / deny policy states.
+- Scenario-scoped and workflow-step-scoped approval gates.
 - Hard-denied no-secret-egress behavior for untrusted instructions.
 - No-purchase and draft-only boundaries.
-- Structured execution/block/approval receipts with blocked-reason persistence.
-- MCP `2025-11-25` initialization and tool discovery/call surface.
-- Streamable HTTP transport checks for Accept negotiation, protocol version, notification `202`, GET `405`, and Origin rejection.
-- No external API keys or network calls required.
+- Structured execution, block, approval, replay, and memory receipts.
+- MCP `2025-11-25` initialization, tool discovery, calls, and Streamable HTTP contract checks.
+- No external API keys, package downloads, cloud accounts, or network calls required for the judge path.
 
-## Test
+## Reproduce the evidence
 
 From this directory:
 
 ```bash
 node test_contract.js
 node test_mcp_server.js
+cd continuity_mcp
+python -m unittest -v test_conformance.py
 ```
 
-Fresh deterministic browser contract execution on 2026-09-08 returned `20 passed, 0 failed`.
+Verified results:
 
-Fresh deterministic MCP transport/tool execution on 2026-09-24 returned `24 passed, 0 failed`. It covers protocol negotiation, response headers, notification handling, six tool schemas, memory, plan construction, approval gates, no-purchase behavior, secret-egress denial, audit receipts, invalid version rejection, Accept enforcement, Origin rejection, GET behavior, and ping.
+- browser simulator contract suite: **20/20 PASS** locally;
+- Node MCP transport/tool suite: **24/24 PASS** locally;
+- Continuity MCP session/idempotency suite: **30/30 PASS** locally; and
+- GitHub Actions run [36017164639](https://github.com/DuncansDoughnuts/SpeakMCP/actions/runs/36017164639): **SUCCESS** on 2026-09-24, with all three suites completing.
 
-The GitHub Actions workflow at `.github/workflows/amazon-buildfest-alexa-plus.yml` now runs both suites on eligible branch/PR changes. The local results above are the canonical evidence until a hosted workflow run is visible.
+The workflow is defined at `.github/workflows/amazon-buildfest-alexa-plus.yml`.
 
 ## Evidence boundary
 
-This project does not claim Alexa certification, a deployed Amazon Agent Skill, live third-party service calls, message delivery, purchases, contest registration, Amazon judging results, placement, or payout. The browser scenarios and MCP tools use local/simulated service adapters. The self-hosted MCP transport itself is runnable and testable; external side effects remain intentionally simulated so the zero-spend and approval boundaries stay truthful.
+This project does not claim Alexa certification, a deployed Amazon Agent Skill, live external mutations, message delivery, purchases, Devpost registration, legal-terms acceptance, a public demo video, final submission, Amazon judging, placement, or payout. The browser scenarios and tool adapters use local/simulated data. The two MCP transports are runnable and testable; external side effects remain simulated.
 
 ## Zero-spend rule
 
-Do not add paid API dependencies, paid hosting, advertisements, purchases, developer fees, or other out-of-pocket participation costs. If a required integration cannot be completed with sponsor-provided, genuinely free-tier, or local resources, keep the local/simulated path rather than spend.
+Do not add paid APIs, paid hosting, advertisements, purchases, developer fees, or other out-of-pocket participation costs. Optional sponsor credits are not required by this submission and no overage is authorized.
 
-## Open-source note
+## License and provenance
 
-The containing SpeakMCP repository is licensed AGPL-3.0. This hackathon work is contributed under the same repository license unless a later project-level license file explicitly states otherwise.
+The containing SpeakMCP repository is licensed AGPL-3.0. This hackathon work is contributed under the same repository license. It was added on the contest branch during the submission period. Synthetic fixtures are used; no IBM/client data, credentials, personal production data, or proprietary Genesis modules are included.
