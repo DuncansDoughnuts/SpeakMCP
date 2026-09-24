@@ -26,7 +26,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - name: Run browser-simulator contract suite
         run: node test_contract.js
-      - name: Run MCP 2025-11-25 Streamable HTTP contract suite
+      - name: Run MCP 2025-11-25 mission-planner suite
         run: node test_mcp_server.js
+      - name: Run Continuity MCP session/idempotency suite
+        run: python -m unittest -v test_conformance.py
+        working-directory: hackathons/amazon-build-ship-shape/alexa-plus-simulator/continuity_mcp
